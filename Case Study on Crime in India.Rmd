@@ -1,0 +1,40 @@
+---
+title: "Data Visualisation- Case Study on Crime In India"
+author: "Ankit Prakash"
+date: "12 May 2018"
+output: html_document
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(plotly)
+# Case Study 1
+# to read the file
+kidnap <- read.csv("C:/Users/Administrator/Desktop/Data Visualisation/Data Set/rajanand-crime-in-india/39_Specific_purpose_of_kidnapping_and_abduction.csv", header = TRUE, na.strings = "NULL")
+
+# to subset the data as er the requirement
+kidnap <- kidnap[, c(1,2,3,13)]
+kidnap <- kidnap[1:3231,]
+
+#to change the name of the columns
+names <- c("State", "Year", "Reason", "Total")
+colnames(kidnap) <- names
+kidnap$Reason <- gsub("Kidnap - For ",'',kidnap$Reason)
+
+# to remove the NULL values
+kidnap <- na.omit(kidnap)
+
+# to get the state wise sum
+k1 <- kidnap %>% group_by(State,Reason) %>% summarise(count= n())
+
+# Graphical representation of the data
+ggplot(k1, aes(x= Reason, y = State)) + 
+  geom_tile(aes(fill = count),colour = "white")+ theme_bw() +
+  scale_fill_gradient(low = "Green",high = "Red")+
+  theme(axis.text.x = element_text(angle = 90), axis.title.y = element_blank(), axis.title.x = element_blank()) + 
+  ggtitle("Reasons for Kidnapping Cases in Different States")
+
+
+```
+
