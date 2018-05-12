@@ -1,0 +1,390 @@
+---
+title: "Manipal Prolearn"
+output: 
+  flexdashboard::flex_dashboard:
+    #orientation: columns
+    vertical_layout: fill
+---
+
+```{r }
+library(flexdashboard)
+library(stringr)
+library(readxl)
+library(dplyr)
+library(DT)
+library(ggplot2)
+library(data.table)
+library(plotly)
+url <- "C:/Users/Administrator/Desktop/Data Visualisation/Data Set/DV- Case Study"
+files <- list.files(url, pattern ="\\.xlsx")
+revenue <- data.frame()
+lead<- data.frame()
+for(i in files){
+  temp <- data.frame() 
+  if (str_detect(i, "2017_Revenue") == TRUE){
+    temp <- read_excel(paste(url,i, sep = "/"))
+    revenue <- rbind(revenue, temp)
+    }
+  else{
+    temp <- read_excel(paste(url,i, sep = "/"))
+    lead <- rbind(lead, temp)}
+}
+```
+
+Problem 1:{data-orientation=Column data-navmenu="Problems"}
+===========================
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Data of Sources Providing Leads
+
+```{r}
+source_lead_enroll <- read.csv("C:/Users/Administrator/Desktop/Data Visualisation/Data Set/DV- Case Study/Source_wise_lead.csv", stringsAsFactors = FALSE)
+source_lead_enroll <- source_lead_enroll %>%  filter(Admission != "#N/A")
+datatable(source_lead_enroll, options = list(pageLength = 10))
+
+```
+
+Column {.tabset data-width=650}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+best_10 <- source_lead_enroll %>% arrange(-Admission) %>% head(10)
+p1 <- ggplot(best_10, aes(x= reorder(Source.Bucket,Admission) , y = Admission, fill = Source.Bucket)) + geom_bar(stat = "identity") +  theme_bw() +
+  ggtitle("Source Lead as per Count of Admission") + theme(axis.text.x = element_blank(), axis.title.y = element_blank(), axis.title.x = element_blank()) +theme(legend.position = "bottom")
+ggplotly(p1)
+```
+
+### Chart B
+
+```{r}
+best10 <- source_lead_enroll %>% arrange(-Coversion_Rate) %>% head(10)
+p2 <- ggplot(best10, aes(x= reorder(Source.Bucket,Coversion_Rate), y = Coversion_Rate, fill = Source.Bucket)) + geom_bar(stat = "identity") +theme_bw() +
+  ggtitle("Source Lead Conversion Percentage") +theme(axis.text.x = element_blank(), axis.title.y = element_blank(), axis.title.x = element_blank()) +theme(legend.position = "bottom")
+ggplotly(p2)
+```
+ 
+Problem 2 {data-orientation=rows data-navmenu="Problems"}
+==============================================
+
+Row {data-width=250}
+-------------------------------------------------------
+### Best Course 
+```{r}
+unique_leads <- unique(setDT(revenue), by = c("Order Email"))
+best_product <- unique_leads%>% group_by(`Course Title`) %>% summarise(Count = n()) %>%  arrange(-Count) %>% head(1)
+a <- best_product$`Course Title`
+valueBox(a, icon = "fa-book", color = "Green")
+```
+
+### Total Admission
+```{r}
+best_product <- revenue %>% group_by(`Course Title`) %>% summarise(Count = n()) %>%  arrange(-Count) %>% head(1)
+a <- best_product$Count
+valueBox(a, icon = "fa-graduation-cap", color = "Blue")
+```
+
+### Total Revenue
+```{r}
+total <- revenue %>% group_by(`Course Title`) %>% summarise(Total = sum(`Order Total`)) %>%  arrange(-Total) %>% head(1)
+b <- total$Total
+valueBox(b, icon = "fa-rupee", color = "Red")
+```
+
+Row {.tabset}
+-----------------------------------------------------
+
+### Focus Areas
+```{r}
+revenue_new <- revenue %>%  group_by(`Course Title`) %>% summarise(Revenue = sum(`Order Total`)) %>% arrange(-Revenue)
+q1 <- quantile(revenue_new$Revenue, probs = .25)
+q2 <- quantile(revenue_new$Revenue, probs = .50)
+q3 <- quantile(revenue_new$Revenue, probs = .75)
+revenue_new$Status <- ifelse(revenue_new$Revenue < q1,"Poor",
+                             ifelse(revenue_new$Revenue <q2, "Need Improvement",
+                                    ifelse(revenue_new$Revenue <q3, "Good", "Excellent")))
+datatable(revenue_new, options = list(pageLength = 10))
+
+```
+
+### Low Perfomance 
+```{r}
+poor <- subset(revenue_new, revenue_new$Status=="Poor")
+poor_new <- poor %>% arrange(Revenue) %>%  head(10)
+
+plot_ly(poor_new, x= ~reorder(`Course Title`,-Revenue),y = ~Revenue,color = ~`Course Title`, type = "bar", text = ~Revenue, textposition = 'auto',
+             marker = list(color = 'rgb(158,202,225)',
+                line = list(color = 'rgb(8,48,107)', width = 1.5))) %>% layout(title = "Poor Performing Products", xaxis = list(title = ""),yaxis = list(title = ""))
+```
+
+###Need Improvement 
+```{r}
+m1 <- subset(revenue_new, revenue_new$Status=="Need Improvement")
+m1_new <- m1 %>% arrange(Revenue) %>%  head(10)
+
+plot_ly(m1_new, x= ~reorder(`Course Title`,-Revenue),y = ~Revenue, type = "bar",color = ~`Course Title`, text = ~Revenue, textposition = 'auto',
+             marker = list(color = 'rgb(158,202,225)',
+                line = list(color = 'rgb(8,48,107)', width = 1.5))) %>% layout(title = "Products That Need Improvement", xaxis = list(title = ""),yaxis = list(title = ""))
+```
+
+
+### Good Performance
+```{r}
+m2 <- subset(revenue_new, revenue_new$Status=="Good")
+m2_new <- m2 %>% arrange(Revenue) %>%  head(10)
+
+plot_ly(m2_new, x= ~reorder(`Course Title`,-Revenue),y = ~Revenue, type = "bar", text = ~Revenue, textposition = 'auto',
+             marker = list(color = 'rgb(158,202,225)',
+                line = list(color = 'rgb(8,48,107)', width = 1.5))) %>% layout(title = "Products Performing above Average", xaxis = list(title = ""),yaxis = list(title = ""))
+```
+
+
+### Exceptional Performance 
+```{r}
+excellent <- subset(revenue_new, revenue_new$Status=="Excellent")
+excellent_new <- excellent %>%  head(10)
+
+plot_ly(excellent_new, x= ~reorder(`Course Title`,-Revenue),y = ~Revenue, type = "bar", text = ~Revenue, textposition = 'auto',marker = list(color = 'rgb(158,202,225)',
+                line = list(color = 'rgb(8,48,107)', width = 1.5))) %>% layout(title = "Products Performing Excellent", xaxis = list(title = ""),yaxis = list(title = ""))
+```
+
+
+Problem 3 {data-orientation=columns data-navmenu="Problems"}
+======================================================
+
+Column {data-width=350}
+------------------------------------------------------
+
+#### Data
+```{r}
+total_calls_assinged <- na.omit(lead %>% group_by(`Assigned To`) %>% summarise(total_calls_made=n()) %>% arrange(-total_calls_made))
+
+total_success_assinged<- na.omit(lead %>% group_by(`Assigned To`,Status) %>% filter(Status=="Interested/Follow Up") %>% summarise(total_responce=n()) %>% arrange(-total_responce))
+
+total_success_rate_assinged <- merge(total_success_assinged,total_calls_assinged) %>%  mutate(success_rate=round(total_responce*100/total_calls_made,2)) %>% arrange(-success_rate) %>% head(10)
+
+datatable(total_success_rate_assinged, options = list(pageLength = 10))
+
+```
+
+Column{data-width=650}
+-----------------------------------------------------
+
+### Couseller Vs Success Rate 
+```{r}
+plotly_success_rate= total_success_rate_assinged %>% arrange(-success_rate) %>% plot_ly(x= ~reorder(`Assigned To`,-success_rate), y=~success_rate, text = ~success_rate, textposition = 'auto',marker = list(color = 'rgb(158,202,225)',
+                line = list(color = 'rgb(8,48,107)'))) %>%   layout(xaxis = list(title="Counselor"), yaxis =list(title="Success Rate") )
+
+plotly_success_rate
+```
+
+Problem3 (Cont.) {data-navmenu="Problems"}
+=====================================================
+
+### Chart As A Heat Map
+````{r}
+total_admission_by_counseler_coursewise <- revenue %>% filter(`Payment Status`=="success") %>% group_by(`Counselor Name`,`Course Title`) %>% summarise(Total_revenue_generated=sum(Amount),success_transaction=n())
+#,`Course Title`%in% c(pgd,pt,adv)
+
+
+total_success_assinged_coursewise<- na.omit(lead %>% group_by(`Assigned To`,Course,Status) %>% filter(Status=="Interested/Follow Up")  %>% summarise(tot_responce=n()) %>% arrange(`Assigned To`))
+
+total_calls_assinged_coursewise <- na.omit(lead %>% group_by(`Assigned To`,Course) %>% summarise(total_calls_made=n()) %>% arrange(-total_calls_made))
+
+total_success_rate_assinged_coursewise <- merge(total_success_assinged_coursewise,total_calls_assinged_coursewise,by=c("Assigned To","Course")) %>%  mutate(success_rate=tot_responce*100/total_calls_made) %>% arrange(Course,-success_rate)  
+df <- total_success_rate_assinged_coursewise[,c(1,2,6)]
+
+#In ggplot
+
+# success_rate_bar_coursewise<- total_success_rate_assinged_coursewise %>% arrange(-success_rate) %>% ggplot(aes(x=reorder(`Assigned To`,-success_rate),y=Course,fill=-success_rate,text=paste("success/call:",paste(tot_responce,total_calls_made,sep = "/"))))+geom_tile()+theme_bw()+ labs(x="Counselor",y="")+
+#   theme(axis.text.x = element_text(angle = -45,hjust = 0))+labs(x="Assigned to",y="Course",title="Courseswise success rate for Counselors")
+# 
+# 
+# ggplotly(success_rate_bar_coursewise,tooltip = c("x","y","text","fill"))
+
+success_rate_bar_coursewise<- total_success_rate_assinged_coursewise %>% arrange(-success_rate) %>% ggplot(aes(x=reorder(`Assigned To`,-success_rate),y=Course,fill=-success_rate,text=paste("success/call:",paste(tot_responce,total_calls_made,sep = "/"))))+geom_tile()+theme_bw()+ labs(x="Counselor",y="")+
+  theme(axis.text.x = element_text(angle = -90,hjust = 0))+labs(x="Assigned to",y="Course",title="Courseswise success rate for Counselors")
+
+ggplotly(success_rate_bar_coursewise,tooltip = c("x","y","text","fill"))
+
+```
+
+
+Problem 4 {data-orientation=columns data-navmenu="Problems"}
+======================================================
+
+Column {data-width=450}
+------------------------------------------------------
+
+#### OverAll Data
+```{r}
+#==================== APRIL ==================#
+
+april <- read_excel("April Leads.xlsx")
+
+
+april_rev <- read_excel("April 2017_Revenue sheet.xlsx", sheet = 1)
+
+# April Revenue
+april_rev_new <- april_rev[complete.cases(april_rev$Location),]
+
+april_rev_new <- april_rev_new %>% select(`Order Email`,Location,`Student Name`,`Mobile Number`,`Course Title`)
+
+
+april_rev_new$`Order Email` <- as.character(april_rev_new$`Order Email`)
+april_rev_new$Location <- as.character(april_rev_new$Location)
+april_rev_new$`Student Name` <- as.character(april_rev_new$`Student Name`)
+april_rev_new$`Mobile Number` <- as.numeric(as.character(april_rev_new$`Mobile Number`))
+april_rev_new$`Course Title` <- as.character(april_rev_new$`Course Title`)
+
+
+april_rev_new$Location <- toupper(april_rev_new$Location)
+
+april_rev_count <- april_rev_new %>% group_by(Location) %>% summarise(Count = n()) %>% as.data.frame()
+april_rev_count$Month <- "April"
+
+# April Lead
+april_lead <- april %>% select(City,Name,Email,Course,Status)
+
+april_lead_new <- april_lead[complete.cases(april_lead$City),]
+
+
+april_lead_new$City <- toupper(april_lead_new$City)
+
+april_lead_count <- april_lead_new %>% 
+  filter(Status %in% c("Call Back","Interested/Follow Up","Admission Taken")) %>% 
+  group_by(City,Status) %>% summarise(Count = n()) %>% as.data.frame()
+april_lead_count2 <- april_lead_count[which(april_lead_count$City %in% april_rev_count$Location),]
+
+april_lead_count2$Month <- "April"
+
+
+#=========================== MARCH ====================#
+
+march <- read_excel("March Leads.xlsx")
+
+march_rev <- read_excel("March 2017_Revenue sheet.xlsx", sheet = 1)
+
+# March Revenue
+march_rev_new <- march_rev[complete.cases(march_rev$Location),]
+march_rev_new <- march_rev %>% select(`Order Email`,Location,`Student Name`,`Mobile Number`,`Course Title`)
+
+march_rev_new$`Order Email` <- as.character(march_rev_new$`Order Email`)
+march_rev_new$Location <- as.character(march_rev_new$Location)
+march_rev_new$`Student Name` <- as.character(march_rev_new$`Student Name`)
+march_rev_new$`Mobile Number` <- as.numeric(as.character(march_rev_new$`Mobile Number`))
+march_rev_new$`Course Title` <- as.character(march_rev_new$`Course Title`)
+
+march_rev_new$Location <- toupper(march_rev_new$Location)
+
+march_rev_count <- march_rev_new %>% group_by(Location) %>% summarise(Count = n()) %>% as.data.frame()
+march_rev_count <- march_rev_count[1:(nrow(march_rev_count)-1),]
+
+march_rev_count$Month <- "March"
+# March Lead
+march_lead <- march %>% select(City,Name,Email,Course,Status)
+
+
+march_lead_new <- march_lead[complete.cases(march_lead$City),]
+
+march_lead_new$City <- toupper(march_lead_new$City)
+
+march_lead_count <- march_lead_new %>% 
+  filter(Status %in% c("Call Back","Interested/Follow Up","Admission Taken")) %>%
+  group_by(City,Status) %>% summarise(Count = n()) %>% as.data.frame()
+march_lead_count2 <- march_lead_count[which(march_lead_count$City %in% march_rev_count$Location),]
+march_lead_count2$Month <- "March"
+
+#======================== MAY ==========================#
+may <- read_excel("May leads.xlsx")
+
+may_rev <- read_excel("May 2017_Revenue sheet.xlsx", sheet = 1)
+
+# May Revenue
+may_rev_new <- may_rev[complete.cases(may_rev$Location),]
+may_rev_new <- may_rev %>% select(`Order Email`,Location,`Student Name`,`Mobile Number`,`Course Title`)
+
+may_rev_new$`Order Email` <- as.character(may_rev_new$`Order Email`)
+may_rev_new$Location <- as.character(may_rev_new$Location)
+may_rev_new$`Student Name` <- as.character(may_rev_new$`Student Name`)
+may_rev_new$`Mobile Number` <- as.numeric(as.character(may_rev_new$`Mobile Number`))
+may_rev_new$`Course Title` <- as.character(may_rev_new$`Course Title`)
+
+may_rev_new$Location <- toupper(may_rev_new$Location)
+
+may_rev_count <- may_rev_new %>% group_by(Location) %>% summarise(Count = n()) %>% as.data.frame()
+may_rev_count <- may_rev_count[1:(nrow(may_rev_count)-1),]
+may_rev_count$Month <- "May"
+
+# May Lead
+may_lead <- may %>% select(City,Name,Email,Course,Status)
+
+
+may_lead_new <- may_lead[complete.cases(may_lead$City),]
+
+may_lead_new$City <- toupper(may_lead_new$City)
+
+may_lead_count <- may_lead_new %>% 
+  filter(Status %in% c("Call Back","Interested/Follow Up","Admission Taken")) %>%
+  group_by(City,Status) %>% summarise(Count = n()) %>% as.data.frame()
+may_lead_count2 <- may_lead_count[which(may_lead_count$City %in% may_rev_count$Location),]
+
+may_lead_count2$Month <- "May"
+
+#====================COMBINE FILES===================#
+
+revenue <- rbind(march_rev_count,april_rev_count,may_rev_count)
+lead <- rbind(march_lead_count2,april_lead_count2,may_lead_count2)
+
+rownames(revenue) <- 1:nrow(revenue)
+rownames(lead) <- 1:nrow(lead)
+
+lead_overall <- lead %>% group_by(City,Month) %>% summarise(Overall = sum(Count))
+lead_overall$Type = "Lead"
+lead_overall <- as.data.frame(lead_overall)
+
+newdf <- data.frame(City = revenue$Location, Month = revenue$Month, Overall = revenue$Count)
+newdf$Type = "Revenue"
+newdf$City <- as.character(newdf$City)
+newdf$Month <- as.character(newdf$Month)
+
+newdf <- rbind(newdf, lead_overall)
+datatable(newdf, options = list(pageLength = 10))
+```
+
+Column {.tabset}
+---------------------------------
+
+### Chart A
+```{r}
+#====================PLOT=======================#
+plot_ly(revenue, x = ~Location, y = ~Count, frame = ~Month,
+        type = "bar", text = ~Count, marker = list(color = 'rgb(8,48,107)')) %>% 
+  layout(title = "Students joined wrt to location",
+         xaxis = list(title = ""),
+         yaxis = list(title = ""))
+
+```
+
+
+### Chart B
+```{r}
+plot_ly(lead, x = ~City, y = ~Count, frame = ~Month,
+        type = "bar", name = ~Status) %>% 
+  layout(barmode = "stack",
+         title = "No of students who were interested")
+```
+
+
+### Chart C
+```{r}
+plot_ly(newdf, x = ~City, y = ~Overall, frame = ~Month, type = "bar", name = ~Type) %>% 
+  layout(barmode = "group")
+
+```
+
+```{r}
+
+```
